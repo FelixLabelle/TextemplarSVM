@@ -10,9 +10,8 @@ better results than linear SVM, but I haven't benchmarked these models so no cle
 Subjectively I like the precomputed cosine SVM most
 
 ## Requirements
-### Python
+### Python 3.8+
 Libraries: Scikit learn, Numpy, SciPY
-Version 3.8+
 
 ## Notes
 
