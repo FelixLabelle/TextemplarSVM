@@ -83,17 +83,16 @@ if __name__ == "__main__":
     '''
     vectorizer = TfidfVectorizer(lowercase=True,max_features=MAX_VOCAB_SIZE)
     corpus_embeddings = vectorizer.fit_transform(doc_mapping.values())
-    
-    #retrieval_model = CosineSimilarityRetrieval(lambda x: vectorizer.transform(x), corpus_embeddings=corpus_embeddings)
-    #retrieval_model = SVMRetrieval(lambda x: vectorizer.transform(x), "linear", corpus_embeddings=corpus_embeddings)
-    retrieval_model = SVMRetrieval(lambda x: vectorizer.transform(x), "precomputed", corpus_embeddings=corpus_embeddings)
+    embedding_func = lambda x: vectorizer.transform(x)
     '''
     model = SentenceTransformer('all-MiniLM-L6-v2')
     corpus_embeddings = model.encode([doc for doc in doc_mapping.values()],batch_size=1,show_progress_bar =True,convert_to_numpy =True)
+    embedding_func = lambda x: model.encode(x)
     
-    #retrieval_model = CosineSimilarityRetrieval(lambda x: model.encode(x), corpus_embeddings=corpus_embeddings)
-    #retrieval_model = SVMRetrieval(lambda x: model.encode(x), "linear", corpus_embeddings=corpus_embeddings)
-    retrieval_model = SVMRetrieval(lambda x: model.encode(x), "precomputed", corpus_embeddings=corpus_embeddings)
+    
+    #retrieval_model = CosineSimilarityRetrieval(embedding_func, corpus_embeddings=corpus_embeddings)
+    #retrieval_model = SVMRetrieval(embedding_func, "linear", corpus_embeddings=corpus_embeddings)
+    retrieval_model = SVMRetrieval(embedding_func, "precomputed", corpus_embeddings=corpus_embeddings)
     
     metrics = []
     for query_idx, query in tqdm(query_mapping.items()):
@@ -109,17 +108,9 @@ if __name__ == "__main__":
         for k in [1,2,5,10,20]:
             top_k_preds = cosine_sim_sorted_idxs[:k]
             tp = sum([idx in relevant_document_idxs for idx in top_k_preds])
-            fp = k - tp
-            fn = len(relevant_document_idxs) - tp
-            
-            precision_at_k = tp / (tp+fp)
-            try:
-                recall_at_k = tp / min((tp+fn),k)
-            except:
-                recall_at_k = 0
-            reported_metrics[f"precision_at_{k}"] = precision_at_k
-            reported_metrics[f"recall_at_{k}"] = recall_at_k
-            reported_metrics[f"result_at_{k}"] = tp > 0
+            reported_metrics[f"precision_at_{k}"] = tp / k
+            reported_metrics[f"recall_at_{k}"] = tp / len(relevant_document_idxs)
+            reported_metrics[f"sensitivity_at_{k}"] = tp > 0
         metrics.append(reported_metrics)
     
     mean_average_metrics = defaultdict(float)
@@ -139,4 +130,6 @@ if __name__ == "__main__":
     # run a query 
     # for each query evaluate
     # report scores
+    # print(pd.DataFrame([cosine_sim_metrics, cosine_svm_metrics]).T.to_markdown())
     # report times
+    # log times...
