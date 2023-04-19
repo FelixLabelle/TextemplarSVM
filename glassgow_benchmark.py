@@ -86,21 +86,19 @@ if __name__ == "__main__":
     embedding_func = lambda x: vectorizer.transform(x)
     '''
     model = SentenceTransformer('all-MiniLM-L6-v2')
-    corpus_embeddings = model.encode([doc for doc in doc_mapping.values()],batch_size=1,show_progress_bar =True,convert_to_numpy =True)
+    corpus_embeddings = model.encode([doc for doc in doc_mapping.values()],batch_size=128,show_progress_bar =True,convert_to_numpy =True)
     embedding_func = lambda x: model.encode(x)
     
     
-    #retrieval_model = CosineSimilarityRetrieval(embedding_func, corpus_embeddings=corpus_embeddings)
+    retrieval_model = CosineSimilarityRetrieval(embedding_func, corpus_embeddings=corpus_embeddings)
     #retrieval_model = SVMRetrieval(embedding_func, "linear", corpus_embeddings=corpus_embeddings)
-    retrieval_model = SVMRetrieval(embedding_func, "precomputed", corpus_embeddings=corpus_embeddings)
+    #retrieval_model = SVMRetrieval(embedding_func, "linear", normalize=True, corpus_embeddings=corpus_embeddings)
     
+    query_doc_mapping = {query_idx: relevant_document_idxs for query_idx,relevant_document_idxs in query_doc_mapping.items() if relevant_document_idxs}
     metrics = []
-    for query_idx, query in tqdm(query_mapping.items()):
-
-        relevant_document_idxs = query_doc_mapping.get(query_idx,[])
+    for query_idx, relevant_document_idxs in tqdm(query_doc_mapping.items()):
+        query = query_mapping[query_idx]
         # Skip empty documents, otherwise this impacts the metrics' meaningfulness
-        if not relevant_document_idxs:
-            continue
         _,cosine_sim_sorted_idxs = retrieval_model.query([query])
         cosine_sim_sorted_idxs = cosine_sim_sorted_idxs +1
         # METRICS
@@ -116,7 +114,7 @@ if __name__ == "__main__":
     mean_average_metrics = defaultdict(float)
     for item in metrics:
         for key in metrics[0].keys():
-            mean_average_metrics[key] += item[key]/len(metrics)
+            mean_average_metrics[key] += item[key]/len(query_doc_mapping)
     
     print(mean_average_metrics)
     # "Ablations" to run

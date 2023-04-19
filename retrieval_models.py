@@ -4,6 +4,7 @@ import numpy as np
 from scipy.sparse import vstack
 from sklearn.svm import LinearSVC
 from sklearn.svm import SVC
+from sklearn.preprocessing import normalize as sk_normalize
 from sklearn.metrics.pairwise import cosine_similarity
 
 '''
@@ -34,9 +35,10 @@ class CosineSimilarityRetrieval:
         return similarities, sorted_idx
 
 class SVMRetrieval:
-    def __init__(self, vectorizer,kernel="linear",corpus=None,corpus_embeddings=None, sample_size=-1):
+    def __init__(self, vectorizer,kernel="linear",corpus=None,corpus_embeddings=None, normalize=False, max_train_set_size=-1):
         self.vectorizer = vectorizer
         self.kernel = kernel
+        self.normalize = normalize
         
         if type(corpus_embeddings) != None:
             self.corpus_embeddings = corpus_embeddings
@@ -46,13 +48,16 @@ class SVMRetrieval:
         else:
             raise ValueError("No corpus or corpus embeddings passed in")
         
+        if self.normalize:
+            self.corpus_embeddings = sk_normalize(self.corpus_embeddings)
+            
         # todo: pass in HPs
-        if sample_size > 0:
-            sample_idxs = random.sample(range(0,self.corpus_embeddings.shape[0]),k=sample_size)
+        if max_train_set_size > 0:
+            sample_idxs = random.sample(range(0,self.corpus_embeddings.shape[0]),k=min(self.corpus_embeddings.shape[0],max_train_set_size))
             self.train_embeddings = self.corpus_embeddings[sample_idxs,:]
         else:
             self.train_embeddings = self.corpus_embeddings
-         
+       
         if self.kernel == "linear":
             self.model = LinearSVC(class_weight='balanced',verbose=False, max_iter=10000, tol=1e-6, C=0.1)
         elif self.kernel == "precomputed":
@@ -67,6 +72,10 @@ class SVMRetrieval:
         
     def query(self, query_doc):
         query_embedding = self.vectorizer(query_doc)
+        
+        if self.normalize:
+            query_embedding = sk_normalize(query_embedding)
+            
         concat_query_corpus_embeddings = vstack([query_embedding, self.train_embeddings])
         
         if self.kernel == "precomputed":
@@ -139,7 +148,7 @@ if __name__ == "__main__":
     _,cosine_svm_sorted_idxs = cosine_svm_search.query(query)
     cosine_svm_topk = [search_corpus[idx] for idx in cosine_svm_sorted_idxs[:TOP_K]]
     
-    cosine_distance_svm_search = SVMRetrieval(lambda x: vectorizer.transform(x), "precomputed", corpus_embeddings=corpus_embeddings,sample_size=1000)
+    cosine_distance_svm_search = SVMRetrieval(lambda x: vectorizer.transform(x), "linear", corpus_embeddings=corpus_embeddings,normalize=True,sample_size=1000)
     _,cosine_distance_svm_sorted_idxs = cosine_distance_svm_search.query(query)
     cosine_distance_svm_topk = [search_corpus[idx] for idx in cosine_distance_svm_sorted_idxs[:TOP_K]]
     
