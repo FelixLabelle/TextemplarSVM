@@ -108,7 +108,7 @@ for dataset in tqdm(datasets):
             dcg = sum([float(idx in relevant_document_idxs)/ math.log2(pos+2) for pos,idx in enumerate(top_k_preds)])
             idcg = sum([float(idx in relevant_document_idxs)/ math.log2(pos+2) for pos,idx in enumerate(relevant_document_idxs)])
             reported_metrics['ndcg'] = dcg/idcg
-            reported_metrics['time'] = run_time 
+            reported_metrics['time'] = run_time
             metrics.append(reported_metrics)
             
             # Store average
